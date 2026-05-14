@@ -34,7 +34,7 @@ def menu_embed():
         " before opening any ticket you need to know what you want. \n"
         "**Report A Player**\nReport a player for breaking the rules.\n"
         "**General Support**\nGet help with general questions or issues.\n"
-        "**
+        "**Team's PFP's**/nsend a pfp of your team only PFP's
     )
     return e
 
@@ -50,6 +50,10 @@ class TicketMenuView(discord.ui.View):
     @discord.ui.button(label="General Support", style=discord.ButtonStyle.danger, custom_id="ticket_appeal")
     async def appeal(self, interaction: discord.Interaction, button: discord.ui.Button):
         await create_ticket_channel(interaction, "General Support", self.category_id)
+
+    @discord.ui.button(label="Team's PFP's", style=discord.ButtonStyle.primary, custom_id="ticket_support")
+    async def support(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await create_ticket_channel(interaction, "Team's PFP's", self.category_id)
 
 class CloseTicketView(discord.ui.View):
     def __init__(self):
