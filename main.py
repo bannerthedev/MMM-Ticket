@@ -2,8 +2,12 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+import os
+import dotenv
+from dotenv import load_dotenv
 
-TOKEN = "MTUwMjA4MDM1MTA5MzM5MTQ4Mw.GIrE0F.Tu3QHuM6s3hRUpEhvPgH2lo34KUneyp4sFEXgI"
+load_dotenv()
+
 GUILD_ID = 1338455645896310784  # Guild ID where command registers
 # Add as many staff role IDs as you want here:
 STAFF_ROLE_IDS = [1351639240861028447, 1339202997208616990, 1353119096211898450, 1472041769049784330, 1338475990833303677 ]  # example: [role_id1, role_id2, ...]
@@ -30,6 +34,7 @@ def menu_embed():
         " before opening any ticket you need to know what you want. \n"
         "**Report A Player**\nReport a player for breaking the rules.\n"
         "**General Support**\nGet help with general questions or issues.\n"
+        "**
     )
     return e
 
@@ -133,4 +138,4 @@ async def on_ready():
     await tree.sync(guild=discord.Object(id=GUILD_ID))
     print(f"Logged in as {bot.user}")
 
-bot.run(TOKEN)
+bot.run(os.getenv("TOKEN"))
