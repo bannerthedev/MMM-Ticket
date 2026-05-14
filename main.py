@@ -34,7 +34,7 @@ def menu_embed():
         " before opening any ticket you need to know what you want. \n"
         "**Report A Player**\nReport a player for breaking the rules.\n"
         "**General Support**\nGet help with general questions or issues.\n"
-        "**Team's PFP's**/nsend a pfp of your team only PFP's
+        "**Team's PFP's**/nsend a pfp of your team only PFP's. /n"
     )
     return e
 
