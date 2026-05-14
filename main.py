@@ -2,14 +2,12 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
-import dotenv
 from dotenv import load_dotenv
 
 load_dotenv()
 
-GUILD_ID = 1338455645896310784  # Guild ID where command registers
-# Add as many staff role IDs as you want here:
-STAFF_ROLE_IDS = [1351639240861028447, 1339202997208616990, 1353119096211898450, 1472041769049784330, 1338475990833303677 ]  # example: [role_id1, role_id2, ...]
+GUILD_ID = 1338455645896310784
+STAFF_ROLE_IDS = [1351639240861028447, 1339202997208616990, 1353119096211898450, 1472041769049784330, 1338475990833303677]
 
 intents = discord.Intents.default()
 intents.guilds = True
@@ -20,7 +18,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 ticket_counter = 1
 
-# Build the embed and buttons for the menu
 def menu_embed():
     e = discord.Embed(title="Community Support and Report Ticket Bot.", color=discord.Color.blurple())
     e.description = (
@@ -30,10 +27,10 @@ def menu_embed():
         "- 3rd Offense - Timeout Again (Double The Previous)\n"
         "- 4th Offense - Stacking 1 Month Bans\n\n"
         "Open the ticket type that fits your issue best. Please read the Terms of Service before opening any ticket.\n"
-        " before opening any ticket you need to know what you want. \n"
-        "**Report A Player**\nReport a player for breaking the rules.\n"
-        "**General Support**\nGet help with general questions or issues.\n"
-        "**Team's PFP's**/nsend a pfp of your team only PFP's.\n"
+        "before opening any ticket you need to know what you want.\n\n"
+        "**Report A Player**\nReport a player for breaking the rules.\n\n"
+        "**General Support**\nGet help with general questions or issues.\n\n"
+        "**Team's PFP's**\nSend a PFP of your team (links & files allowed).\n"
     )
     return e
 
@@ -42,17 +39,17 @@ class TicketMenuView(discord.ui.View):
         super().__init__(timeout=None)
         self.category_id = category_id
 
-    @discord.ui.button(label="Report A Player", style=discord.ButtonStyle.primary, custom_id="ticket_support")
-    async def support(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await create_ticket_channel(interaction, "Report A Player", self.category_id)
+    @discord.ui.button(label="Report A Player", style=discord.ButtonStyle.primary, custom_id="ticket_report_player")
+    async def report_player_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await create_ticket_channel(interaction, "Report A Player", self.category_id, allow_attachments=False, allow_embeds=False)
 
-    @discord.ui.button(label="General Support", style=discord.ButtonStyle.danger, custom_id="ticket_appeal")
-    async def appeal(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await create_ticket_channel(interaction, "General Support", self.category_id)
+    @discord.ui.button(label="General Support", style=discord.ButtonStyle.danger, custom_id="ticket_general_support")
+    async def general_support_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await create_ticket_channel(interaction, "General Support", self.category_id, allow_attachments=False, allow_embeds=False)
 
-    @discord.ui.button(label="Team's PFP's", style=discord.ButtonStyle.primary, custom_id="ticket_support")
-    async def support(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await create_ticket_channel(interaction, "Team's PFP's", self.category_id)
+    @discord.ui.button(label="Team's PFP's", style=discord.ButtonStyle.success, custom_id="ticket_teams_pfps")
+    async def teams_pfps_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await create_ticket_channel(interaction, "Team's PFP's", self.category_id, allow_attachments=True, allow_embeds=True)
 
 class CloseTicketView(discord.ui.View):
     def __init__(self):
@@ -60,7 +57,6 @@ class CloseTicketView(discord.ui.View):
 
     @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, custom_id="ticket_close")
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # permission check: admin or any staff role or ticket owner (owner id stored in channel.topic)
         member = interaction.user
         if member.guild_permissions.administrator or any(r.id in STAFF_ROLE_IDS for r in member.roles):
             await interaction.response.send_message("Closing ticket...", ephemeral=True)
@@ -77,24 +73,33 @@ class CloseTicketView(discord.ui.View):
 
         await interaction.response.send_message("Only staff or the ticket owner can close this ticket.", ephemeral=True)
 
-async def create_ticket_channel(interaction: discord.Interaction, type_label: str, category_id: int | None):
+async def create_ticket_channel(interaction: discord.Interaction, type_label: str, category_id: int | None, allow_attachments: bool = False, allow_embeds: bool = False):
     global ticket_counter
     await interaction.response.defer(ephemeral=True)
     guild = interaction.guild
-    # build channel name
     safe_name = ''.join(ch for ch in interaction.user.name.lower() if ch.isalnum())[:8]
     channel_name = f"ticket-{ticket_counter}-{safe_name}"
     ticket_counter += 1
 
-    # overwrites: deny everyone, allow member and staff roles
+    # base overwrites: deny @everyone
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False)
     }
-    overwrites[interaction.user] = discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
+
+    # Member permissions: allow send/see, conditionally allow embed_links & attach_files
+    overwrites[interaction.user] = discord.PermissionOverwrite(
+        view_channel=True,
+        send_messages=True,
+        read_message_history=True,
+        attach_files=allow_attachments,
+        embed_links=allow_embeds
+    )
+
+    # Staff roles: allow full access
     for rid in STAFF_ROLE_IDS:
         role = guild.get_role(rid)
         if role:
-            overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
+            overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True, attach_files=True, embed_links=True, manage_channels=False)
 
     category = guild.get_channel(category_id) if category_id else None
     try:
@@ -108,7 +113,7 @@ async def create_ticket_channel(interaction: discord.Interaction, type_label: st
 
         embed = discord.Embed(
             title=f"{type_label} Ticket",
-            description="please describe the issue and provide any relevant evidence or details.",
+            description="Please describe the issue and provide any relevant evidence or details.",
             color=discord.Color.green()
         )
         await new_ch.send(content=interaction.user.mention, embed=embed, view=CloseTicketView())
@@ -116,7 +121,6 @@ async def create_ticket_channel(interaction: discord.Interaction, type_label: st
     except Exception:
         await interaction.followup.send("Failed to create ticket channel. Check bot permissions.", ephemeral=True)
 
-# Slash command to post the ticket menu (admin-only)
 @tree.command(name="create_ticket", description="Post the ticket menu in a channel", guild=discord.Object(id=GUILD_ID))
 @app_commands.describe(channel="Channel to post the ticket menu in", category="Optional category to place ticket channels under")
 @app_commands.checks.has_permissions(administrator=True)
@@ -128,7 +132,6 @@ async def create_ticket(interaction: discord.Interaction, channel: discord.TextC
     except Exception:
         await interaction.response.send_message("Failed to post menu. Check bot permissions.", ephemeral=True)
 
-# Error handler for permission fails
 @create_ticket.error
 async def create_ticket_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.errors.MissingPermissions):
